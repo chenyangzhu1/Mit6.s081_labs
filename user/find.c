@@ -13,6 +13,7 @@ char *fmtname(char *path)
     p++;
 
     return p;
+    //这里仅仅需要返回字符串即可
 }
 
 void myfind(char *path, char *filename)
@@ -39,14 +40,14 @@ void myfind(char *path, char *filename)
     {
     case T_FILE:
         // printf("%s %d %d %l\n", fmtname(path), st.type, st.ino, st.size);
-        if (strcmp(fmtname(path), filename) == 0)
+        if (strcmp(fmtname(path), filename) == 0) //如果说路径下的文件名就是我们要找的，直接输出
         {
             printf("%s\n", path);
         }
         break;
 
     case T_DIR:
-        if (strlen(path) + 1 + DIRSIZ + 1 > sizeof buf)
+        if (strlen(path) + 1 + DIRSIZ + 1 > sizeof buf) //处理path过长
         {
             printf("ls: path too long\n");
             break;
@@ -56,10 +57,10 @@ void myfind(char *path, char *filename)
         *p++ = '/';
         while (read(fd, &de, sizeof(de)) == sizeof(de))
         {
-            if (de.inum == 0 || strcmp(de.name, ".") == 0 || strcmp(de.name, "..") == 0) //不递归
+            if (de.inum == 0 || strcmp(de.name, ".") == 0 || strcmp(de.name, "..") == 0) //为了不递归
                 continue;
             memmove(p, de.name, DIRSIZ);
-            p[DIRSIZ] = 0;
+            p[DIRSIZ] = 0; //最后一位置为0
             // if (stat(buf, &st) < 0)
             // {
             //     printf("ls: cannot stat %s\n", buf);
