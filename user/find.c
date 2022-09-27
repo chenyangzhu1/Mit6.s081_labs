@@ -13,7 +13,7 @@ char *fmtname(char *path)
     p++;
 
     return p;
-    //这里仅仅需要返回字符串即可
+    //这里仅仅需要返回斜杠后面的第一个字符串即可
 }
 
 void myfind(char *path, char *filename)
@@ -25,13 +25,13 @@ void myfind(char *path, char *filename)
 
     if ((fd = open(path, 0)) < 0)
     {
-        fprintf(2, "ls: cannot open %s\n", path);
+        fprintf(2, "find: cannot open %s\n", path);
         return;
     }
 
     if (fstat(fd, &st) < 0)
     {
-        fprintf(2, "ls: cannot stat %s\n", path);
+        fprintf(2, "find: cannot stat %s\n", path);
         close(fd);
         return;
     }
