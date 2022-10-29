@@ -741,10 +741,13 @@ int free_fd(void)
   int my_num;
   my_num = 0;
   //一个进程中有NOFILE个文件，然后他们的具体描述符在ofile中，考察他是否为0，如果为0则尚未使用
-  for (int iter = 0; iter < NOFILE; iter++)
+  int iter=0;
+  while(iter<NOFILE)
   {
-    if (pointer->ofile[iter] == 0)
+    if(pointer->ofile[iter]==0)
       my_num++;
+    iter++;
   }
+
   return my_num;
 }

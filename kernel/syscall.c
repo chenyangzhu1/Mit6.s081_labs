@@ -195,17 +195,16 @@ syscall(void)
 
   if(num > 0 && num < NELEM(syscalls) && syscalls[num]) {
     //divide former sentence
-    int my_ret=syscalls[num]();//get the return value
     //进行系统调用
     
     int my_arg=p->trapframe->a0;//get the first parameter from the sys
-    p->trapframe->a0=my_ret;//store the fire parameter
+    p->trapframe->a0=syscalls[num]();//store the fire parameter
     if(1<<num & p->mask)//进程的执行过程有很多的系统调用，我们这里需要判断是否是我们需要trace的那一个调用
     /*判断其是否在当前进程的mask中，
     根据mask的掩码特性，使用与运算就能轻松实现这个过程
     1左移，然后和mask那个位与，如果是1则在*/
     {
-      printf("%d: %s(%d) -> %d\n",p->pid,syscallname[num],my_arg,my_ret);
+      printf("%d: %s(%d) -> %d\n",p->pid,syscallname[num],my_arg,p->trapframe->a0);
       //<pid>: syscall <syscall_name> -> <return_value>
       //PID: sys_read(read系统调用的arg0) -> read系统调用的return_value
     }//print
