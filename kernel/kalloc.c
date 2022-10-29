@@ -82,10 +82,8 @@ kalloc(void)
 
 int free_mem(void)
 {
-  int len_of_mem;
-  len_of_mem = 0;
-  struct run *r_iter;
-  for (r_iter = kmem.freelist; r_iter; r_iter = r_iter->next)
-    len_of_mem++;
-  return len_of_mem * PGSIZE;
+  //逻辑很简单，就是从freelist表头开始，往后统计空着的页数，然后乘以PGSIZE即可
+  uint64 len=0;
+  for(struct run *r=kmem.freelist;r;r=r->next,len++){}
+  return len*PGSIZE;
 }

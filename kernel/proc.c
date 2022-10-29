@@ -5,7 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
-
+//The process-related code
 struct cpu cpus[NCPU];
 
 struct proc proc[NPROC];
@@ -289,7 +289,7 @@ int fork(void)
 
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
-
+/*进程使用fork创建子进程时，我们显然也应追踪该子进程的系统调用，因此要在proc.c中修改fork函数，把父进程的mask复制给子进程，代码如下：*/
   np->mask = p->mask;
   // mask的继承
   //  Cause fork to return 0 in the child.
@@ -724,22 +724,23 @@ void procdump(void)
 
 int n_proc(void)
 {
-  struct proc *pointer;
-  int my_num;
-  my_num = 0;
-  for (pointer = proc; pointer < &proc[NPROC]; pointer++)
+  int n=0;
+  /*proc数组就保存着所有的进程，
+  所以只要遍历这个数组判断状态就好了*/
+  for(struct proc* p=proc;p<&proc[NPROC];p++)
   {
-    if (pointer->state == UNUSED)
-      my_num++;
+    if(p->state==UNUSED)
+      n++;
   }
-  return my_num;
+  return n;
 }
-
+//当前进程可用文件描述符的数量，即 尚未使用 的文件描述符数量
 int free_fd(void)
 {
   struct proc *pointer = myproc();
   int my_num;
   my_num = 0;
+  //一个进程中有NOFILE个文件，然后他们的具体描述符在ofile中，考察他是否为0，如果为0则尚未使用
   for (int iter = 0; iter < NOFILE; iter++)
   {
     if (pointer->ofile[iter] == 0)

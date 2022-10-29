@@ -6,7 +6,7 @@
 
 char buf[1024];
 int match(char*, char*);
-
+//是trace应用程序中通过"exec"启动的另一个程序
 void
 grep(char *pattern, int fd)
 {

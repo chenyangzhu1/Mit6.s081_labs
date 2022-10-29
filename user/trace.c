@@ -22,6 +22,7 @@ main(int argc, char *argv[])
   for(i = 2; i < argc && i < MAXARG; i++){
     nargv[i-2] = argv[i];
   }
-  exec(nargv[0], nargv);
+  //利用usys.S执行ecall到达内核态 
+  exec(nargv[0], nargv);//启动grep
   exit(0);
 }
