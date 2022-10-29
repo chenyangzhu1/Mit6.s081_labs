@@ -29,6 +29,13 @@
 It is OK to use a fixed number of buckets and not resize the hash table dynamically.
 Use a prime number of buckets (e.g., 13) to reduce the likelihood of hashing conflicts.
 */
+
+
+/*1.首先将buffer cache分为13个桶，
+这里我没有采用指导书的数据结构，
+而是把这些桶独立出来，便于我自己操作与理解，
+同时，我把原来的bcache去掉，因为每个桶里面已经有了自己head，
+就不再需要这个总的head了，这个bcache只是起一个全局锁以及遍历的作用。*/
 struct
 {
   struct spinlock lock;
@@ -50,7 +57,9 @@ struct
 } bcache;
 
 /*将buffer cache分为若干桶，每个桶加一个单独的锁来保护*/
-
+/*2.定义好自己的桶以后，修改初始化的函数binit，这一块与任务一类似，就是把单个加锁和初始化的过程扩展到多个加锁与初始化。
+上锁的方式与原代码类似，首先调用initlock，然后将prev和next均指向自己。
+初始化则是把内存块以此放入桶中， 这里我们用的是头插法，对于一个内存块b，首先利用模运算获取它所在的桶的编号hashnum，之后把这个内存块插入头结点后面。*/
 void binit(void)
 { //初始化
   struct buf *b;
@@ -90,6 +99,22 @@ void binit(void)
 // Look through buffer cache for block on device dev.
 // If not found, allocate a buffer.
 // In either case, return locked buffer.
+
+
+/*3.修改bget，这是这个实验的核心，逻辑比较复杂。
+分为3种情况，在本桶里找到，在本桶里找不到但是可以用空闲块来替代，在本桶里找不到且无法用空闲块来替代从而去别的桶里面找。
+前置操作就是获取该块所对应的桶编号hashnum，然后将这个桶锁起来
+首先是本桶里面找到的情况
+仿照原代码，利用head进行遍历（从头结点下一个，也就是首元素开始，
+将链表指针不断后移，直到最后一个元素），找到dev与blockno均匹配的那个块，标记引用，解锁返回。
+其次是在本桶里找不到但是可以用空闲块来替代
+在本桶中继续遍历，遍历的逻辑上面已经说过，但是这里的寻找目标是一个没有被占用的块，条件也就是b->refcnt==0，找到以后，把这个块修改成我们所需要返回的块，修改他的dev，blockno信息与参数一致，valid设置为0，refcnt设置为1，然后释放桶的锁，返回。
+最后是在本桶里找不到且无法用空闲块来替代从而去别的桶里面找
+最外层循环是遍历所有的桶，内层循环是遍历桶中的内存块（这个操作之前要对这个桶加锁），
+如果找到了一个没被占用的块，和情况2一样修改其属性成我们需要的样子，
+与此同时还需要把这个块从原来的桶里面取出来，这个用链表操作很容易实现（让这个元素的前序元素指向后序元素，
+后序元素指向前序元素即可），取出这个块以后，放入原本的桶中，释放锁，这里我们同时申请了两把锁，
+无论是找到还是没有找到这个元素我们都应该去释放这两把锁。*/
 static struct buf *
 bget(uint dev, uint blockno)
 { /*为device dev返回一个序号为blockno的buffer，并更新其在buffer cache中的位置。*/
@@ -213,6 +238,16 @@ void bwrite(struct buf *b)
 
 // Release a locked buffer.
 // Move to the head of the most-recently-used list.
+
+
+/*4.最后就是一些其他函数的处理
+把他们修改成适合桶数据结构的方式即可。
+修改部分已用荧光标注，
+以brelse为例
+我们获取b的磁盘块号，利用模运算获取其对应的桶编号，
+然后对这个桶加锁，如果这个块处于空闲状态，就把他加入桶中，
+加入的方式也是头插法，先把头的next赋给这个块的next，
+然后把该块加入到桶的头结点的后面。*/
 void brelse(struct buf *b)
 { /*它实现的是告知buffer cache某个buffer不再被设备调用，
  实现方式在于将该buffer对应的refcnt减一，
