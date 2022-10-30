@@ -3,9 +3,19 @@
 #include "memlayout.h"
 #include "elf.h"
 #include "riscv.h"
+#include "spinlock.h"
+#include "proc.h"
 #include "defs.h"
 #include "fs.h"
-
+// #include "vmcopyin.c"
+// #ifndef _TEST_H_//文件名大写
+// #define _TEST_H_//文件名大写
+// #include "vmcopyin.c"
+// // int
+// // copyin_new(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len);
+// // int
+// // copyinstr_new(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max);
+// #endif
 /*
  * the kernel's page table.
  */
@@ -45,6 +55,42 @@ void kvminit()
   // the highest virtual address in the kernel.
   kvmmap(TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X);
 }
+//fixme
+//要写在调用者上面qaq
+//仿照kvmmap，只需要多一个参数，因为我们是手动初始化传入参数，而非全局变量
+void mykvmmap(pagetable_t k, uint64 va, uint64 pa, uint64 sz, int perm)
+{
+  if(mappages(k, va, sz, pa, perm) != 0)
+    panic("uvmmap");
+}
+
+pagetable_t init_pagetable_of_kernel()
+{
+  pagetable_t pagetable_of_kernel;
+  pagetable_of_kernel=(pagetable_t)kalloc();//按照kvminit进行初始化
+
+  memset(pagetable_of_kernel,0,PGSIZE);
+  // uart registers
+  mykvmmap(pagetable_of_kernel, UART0, UART0, PGSIZE, PTE_R | PTE_W);
+  // virtio mmio disk interface
+  mykvmmap(pagetable_of_kernel, VIRTIO0, VIRTIO0, PGSIZE, PTE_R | PTE_W);
+  // CLINT 按照指导书所说，这里先不包含CLINT
+  // mykvmmap(pagetable_of_kernel, CLINT, CLINT, 0x10000, PTE_R | PTE_W);
+  // PLIC
+  mykvmmap(pagetable_of_kernel, PLIC, PLIC, 0x400000, PTE_R | PTE_W);
+  // map kernel text executable and read-only.
+  mykvmmap(pagetable_of_kernel, KERNBASE, KERNBASE, (uint64)etext-KERNBASE, PTE_R | PTE_X);
+  // map kernel data and the physical RAM we'll make use of.
+  mykvmmap(pagetable_of_kernel, (uint64)etext, (uint64)etext, PHYSTOP-(uint64)etext, PTE_R | PTE_W);
+  // map the trampoline for trap entry/exit to
+  // the highest virtual address in the kernel.
+  mykvmmap(pagetable_of_kernel, TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X);
+  return pagetable_of_kernel;
+}
+
+
+
+
 
 // Switch h/w page table register to the kernel's page table,
 // and enable paging.
@@ -126,14 +172,16 @@ void kvmmap(uint64 va, uint64 pa, uint64 sz, int perm)
 // a physical address. only needed for
 // addresses on the stack.
 // assumes va is page aligned.
+// 虚实地址转换函数，walk使用了全局内核页表，这里需要换成当前内核页表
+//不知道为啥加了还是报错
 uint64
 kvmpa(uint64 va)
 {
   uint64 off = va % PGSIZE;
   pte_t *pte;
   uint64 pa;
-
-  pte = walk(kernel_pagetable, va, 0);
+//fixme
+  pte = walk(myproc()->kernel_pagetable, va, 0);
   if (pte == 0)
     panic("kvmpa");
   if ((*pte & PTE_V) == 0)
@@ -410,24 +458,33 @@ int copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 // Return 0 on success, -1 on error.
 int copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len)
 {
-  uint64 n, va0, pa0;
+  // uint64 n, va0, pa0;
 
-  while (len > 0)
+  // while (len > 0)
+  // {
+  //   va0 = PGROUNDDOWN(srcva);
+  //   pa0 = walkaddr(pagetable, va0);
+  //   if (pa0 == 0)
+  //     return -1;
+  //   n = PGSIZE - (srcva - va0);
+  //   if (n > len)
+  //     n = len;
+  //   memmove(dst, (void *)(pa0 + (srcva - va0)), n);
+
+  //   len -= n;
+  //   dst += n;
+  //   srcva = va0 + PGSIZE;
+  // }
+  // return 0;
+  //fixme
+  if(len)
   {
-    va0 = PGROUNDDOWN(srcva);
-    pa0 = walkaddr(pagetable, va0);
-    if (pa0 == 0)
-      return -1;
-    n = PGSIZE - (srcva - va0);
-    if (n > len)
-      n = len;
-    memmove(dst, (void *)(pa0 + (srcva - va0)), n);
-
-    len -= n;
-    dst += n;
-    srcva = va0 + PGSIZE;
+    return copyin_new(pagetable,dst,srcva,len);
   }
-  return 0;
+  else
+  {
+    panic("wrong len");
+  }
 }
 
 // Copy a null-terminated string from user to kernel.
@@ -435,49 +492,58 @@ int copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len)
 // until a '\0', or max.
 // Return 0 on success, -1 on error.
 int copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
-{
-  uint64 n, va0, pa0;
-  int got_null = 0;
-
-  while (got_null == 0 && max > 0)
+{//fixme
+  if(max)
   {
-    va0 = PGROUNDDOWN(srcva);
-    pa0 = walkaddr(pagetable, va0);
-    if (pa0 == 0)
-      return -1;
-    n = PGSIZE - (srcva - va0);
-    if (n > max)
-      n = max;
-
-    char *p = (char *)(pa0 + (srcva - va0));
-    while (n > 0)
-    {
-      if (*p == '\0')
-      {
-        *dst = '\0';
-        got_null = 1;
-        break;
-      }
-      else
-      {
-        *dst = *p;
-      }
-      --n;
-      --max;
-      p++;
-      dst++;
-    }
-
-    srcva = va0 + PGSIZE;
-  }
-  if (got_null)
-  {
-    return 0;
+    return copyinstr_new(pagetable,dst,srcva,max);
   }
   else
   {
-    return -1;
+    panic("over max");
   }
+  // uint64 n, va0, pa0;
+  // int got_null = 0;
+
+  // while (got_null == 0 && max > 0)
+  // {
+  //   va0 = PGROUNDDOWN(srcva);
+  //   pa0 = walkaddr(pagetable, va0);
+  //   if (pa0 == 0)
+  //     return -1;
+  //   n = PGSIZE - (srcva - va0);
+  //   if (n > max)
+  //     n = max;
+
+  //   char *p = (char *)(pa0 + (srcva - va0));
+  //   while (n > 0)
+  //   {
+  //     if (*p == '\0')
+  //     {
+  //       *dst = '\0';
+  //       got_null = 1;
+  //       break;
+  //     }
+  //     else
+  //     {
+  //       *dst = *p;
+  //     }
+  //     --n;
+  //     --max;
+  //     p++;
+  //     dst++;
+  //   }
+
+  //   srcva = va0 + PGSIZE;
+  // }
+  // if (got_null)
+  // {
+  //   return 0;
+  // }
+  // else
+  // {
+  //   return -1;
+  // }
+  
 }
 
 // check if use global kpgtbl or not
@@ -491,42 +557,43 @@ int test_pagetable()
 void vmprint(pagetable_t pgtbl)
 {
   printf("page table %p\n", pgtbl);
-  // int i = 0;
-  // int j = 0;
-  // int k = 0;
-  // pte_t pte_root, pte_sub, pte_leaf;
-  // uint64 child_root, child_sub, child_leaf;
-  // while (i < 512)
-  // {
-  //   pte_t pte_root = pgtbl[i];
-  //   if ((pte_root & PTE_V))
-  //   {
-  //     uint64 child_root = PTE2PA(pte_root);
-  //     printf("||%d: pte %p pa %p\n", i, pte_root, child_root);
-  //     while (j < 512)
-  //     {
-  //       pte_t pte_sub = ((pagetable_t)child_root)[j];
-  //       if (pte_sub & PTE_V)
-  //       {
-  //         uint64 child_sub = PTE2PA(pte_sub);
-  //         printf("|| ||%d: pte %p pa %p\n", j, pte_sub, child_sub);
-  //         while (k < 512)
-  //         {
-  //           pte_t pte_leaf = ((pagetable_t)child_sub)[k];
-  //           if (pte_leaf & PTE_V)
-  //           {
-  //             uint64 child_leaf = PTE2PA(pte_leaf);
-  //             printf("|| || ||%d: pte %p pa %p\n", k, pte_leaf, child_leaf);
-  //           }
-  //           k++;
-  //         }
-  //       }
-  //       j++;
-  //     }
-  //   }
-  //   i++;
-  // }
-
+  // fixme
+  //  int i = 0;
+  //  int j = 0;
+  //  int k = 0;
+  //  pte_t pte_root, pte_sub, pte_leaf;
+  //  uint64 child_root, child_sub, child_leaf;
+  //  while (i < 512)
+  //  {
+  //    pte_t pte_root = pgtbl[i];
+  //    if ((pte_root & PTE_V))
+  //    {
+  //      uint64 child_root = PTE2PA(pte_root);
+  //      printf("||%d: pte %p pa %p\n", i, pte_root, child_root);
+  //      while (j < 512)
+  //      {
+  //        pte_t pte_sub = ((pagetable_t)child_root)[j];
+  //        if (pte_sub & PTE_V)
+  //        {
+  //          uint64 child_sub = PTE2PA(pte_sub);
+  //          printf("|| ||%d: pte %p pa %p\n", j, pte_sub, child_sub);
+  //          while (k < 512)
+  //          {
+  //            pte_t pte_leaf = ((pagetable_t)child_sub)[k];
+  //            if (pte_leaf & PTE_V)
+  //            {
+  //              uint64 child_leaf = PTE2PA(pte_leaf);
+  //              printf("|| || ||%d: pte %p pa %p\n", k, pte_leaf, child_leaf);
+  //            }
+  //            k++;
+  //          }
+  //        }
+  //        j++;
+  //      }
+  //    }
+  //    i++;
+  //  }
+//fixme
   for (int i = 0; i < 512; i++)
   {
     pte_t pte_root = pgtbl[i];

@@ -75,6 +75,10 @@ exec(char *path, char **argv)
   sp = sz;
   stackbase = sp - PGSIZE;
 
+
+  myuvmcopy(pagetable, p->kernel_pagetable, 0, sz);
+  //fixme
+
   // Push argument strings, prepare rest of stack in ustack.
   for(argc = 0; argv[argc]; argc++) {
     if(argc >= MAXARG)
