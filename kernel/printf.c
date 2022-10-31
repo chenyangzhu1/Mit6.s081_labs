@@ -123,6 +123,7 @@ panic(char *s)
   printf("\n");
   panicked = 1; // freeze uart output from other CPUs
   backtrace();
+
   for(;;)
     ;
 }
@@ -143,10 +144,11 @@ void backtrace()
   uint64 off16=*(uint64*)(rfp-16);
 
 
-  uint64 upper=PGROUNDUP(rfp);
-  uint64 down=PGROUNDDOWN(rfp);
+  // uint64 upper=PGROUNDUP(rfp);
+  // uint64 down=PGROUNDDOWN(rfp);
 
-  while(rfp>down && rfp<upper)
+  // while(rfp>down && rfp<upper)
+  while (PGROUNDUP(rfp) - PGROUNDDOWN(rfp) == PGSIZE)
   {
     printf("%p\n",off8);
     rfp=off16;
