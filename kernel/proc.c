@@ -107,6 +107,12 @@ allocproc(void)
 found:
   p->pid = allocpid();
 
+  // =========== alarm solution ============
+  p->passed_ticks = 0;
+  p->alarm_interval = 0;
+  p->allow_entrance_handler = 1;
+  // =======================================
+
   // Allocate a trapframe page.
   if((p->trapframe = (struct trapframe *)kalloc()) == 0){
     release(&p->lock);
@@ -127,15 +133,6 @@ found:
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
 
-  // p->t_trap = (struct trapframe*)kalloc();
-  if((p->t_trap = (struct trapframe*)kalloc()) == 0) {
-    freeproc(p);
-    release(&p->lock);
-    return 0;
-}
-  p->ticks_sum=0;
-  p->ticks=0;
-  p->flag=0;
   return p;
 }
 
@@ -159,8 +156,6 @@ freeproc(struct proc *p)
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
-  if(p->t_trap)
-    kfree((void*)p->t_trap);
 }
 
 // Create a user page table for a given process,
