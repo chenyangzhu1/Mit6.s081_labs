@@ -103,4 +103,47 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
+  int ticks;
+  int handler;
+  int ticks_sum;
+  // uint64 epc_temp;
+
+  //   /*   0 */ uint64 kernel_satp_temp;   // kernel page table
+  // /*   8 */ uint64 kernel_sp_temp;     // top of process's kernel stack
+  // /*  16 */ uint64 kernel_trap_temp;   // usertrap()
+  // /*  24 */ uint64 epc_temp;           // saved user program counter
+  // /*  32 */ uint64 kernel_hartid_temp; // saved kernel tp
+  // /*  40 */ uint64 ra_temp;
+  // /*  48 */ uint64 sp_temp;
+  // /*  56 */ uint64 gp_temp;
+  // /*  64 */ uint64 tp_temp;
+  // /*  72 */ uint64 t0_temp;
+  // /*  80 */ uint64 t1_temp;
+  // /*  88 */ uint64 t2_temp;
+  // /*  96 */ uint64 s0_temp;
+  // /* 104 */ uint64 s1_temp;
+  // /* 112 */ uint64 a0_temp;
+  // /* 120 */ uint64 a1_temp;
+  // /* 128 */ uint64 a2_temp;
+  // /* 136 */ uint64 a3_temp;
+  // /* 144 */ uint64 a4_temp;
+  // /* 152 */ uint64 a5_temp;
+  // /* 160 */ uint64 a6_temp;
+  // /* 168 */ uint64 a7_temp;
+  // /* 176 */ uint64 s2_temp;
+  // /* 184 */ uint64 s3_temp;
+  // /* 192 */ uint64 s4_temp;
+  // /* 200 */ uint64 s5_temp;
+  // /* 208 */ uint64 s6_temp;
+  // /* 216 */ uint64 s7_temp;
+  // /* 224 */ uint64 s8_temp;
+  // /* 232 */ uint64 s9_temp;
+  // /* 240 */ uint64 s10_temp;
+  // /* 248 */ uint64 s11_temp;
+  // /* 256 */ uint64 t3_temp;
+  // /* 264 */ uint64 t4_temp;
+  // /* 272 */ uint64 t5_temp;
+  // /* 280 */ uint64 t6_temp;
+  struct trapframe* t_trap;
+  int flag;
 };

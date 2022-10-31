@@ -77,8 +77,35 @@ usertrap(void)
     exit(-1);
 
   // give up the CPU if this is a timer interrupt.
+  //如果有一个时钟周期的中断，就会到这里
   if(which_dev == 2)
+  {
+    if(ticks!=0)//指导书说如果入参为0就不用执行
+    {
+      //首先我们需要统计tick_sum
+      /*如果当前的sum还没有超过ticks
+      就是还没到达周期
+      就正常++
+      否则就是到周期了
+      归零然后中断处理*/
+      if(p->ticks_sum<=p->ticks)
+      {
+        p->ticks_sum++;
+      }
+      else if(p->flag==0)//只有等于1的时候去执行handler
+      {
+        p->ticks_sum=0;
+        
+        // p->epc_temp=p->trapframe->epc;
+        memmove(p->t_trap, p->trapframe, sizeof(struct trapframe));
+        p->flag=1;
+
+        p->trapframe->epc=(uint64)p->handler;
+      }
+    }
+
     yield();
+  }
 
   usertrapret();
 }
