@@ -134,15 +134,25 @@ printfinit(void)
   pr.locking = 1;
 }
 
-// ===========  backtrace solution ===========
-void 
-backtrace(void)
+void backtrace(void)
 {
-  uint64 cur_fp = r_fp();
-  while(cur_fp != PGROUNDDOWN(cur_fp))
+  printf("backtrace:\n");
+  uint64 rfp=r_fp();
+  // printf("fp:%p\n",rfp);
+  uint64 off8=*(uint64*)(rfp-8);
+  uint64 off16=*(uint64*)(rfp-16);
+
+
+  // uint64 upper=PGROUNDUP(rfp);
+  // uint64 down=PGROUNDDOWN(rfp);
+
+  // while(rfp>down && rfp<upper)
+  while (PGROUNDUP(rfp) - PGROUNDDOWN(rfp) == PGSIZE)
   {
-    printf("%p\n", *(uint64 *)(cur_fp - 8));
-    cur_fp = *(uint64 *)(cur_fp - 16);
+    printf("%p\n",off8);
+    rfp=off16;
+    off8=*(uint64*)(rfp-8);
+    off16=*(uint64*)(rfp-16);
   }
+
 }
-// =============================================
