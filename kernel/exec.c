@@ -29,8 +29,6 @@ exec(char *path, char **argv)
   }
   ilock(ip);
 
-  // now we don't need to care about the previous ustack
-  p->ustack = 0;
   // Check ELF header
   if(readi(ip, 0, (uint64)&elf, 0, sizeof(elf)) != sizeof(elf))
     goto bad;
@@ -76,7 +74,6 @@ exec(char *path, char **argv)
   uvmclear(pagetable, sz-2*PGSIZE);
   sp = sz;
   stackbase = sp - PGSIZE;
-  p->ustack = stackbase;
 
   // Push argument strings, prepare rest of stack in ustack.
   for(argc = 0; argv[argc]; argc++) {

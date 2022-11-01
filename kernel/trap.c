@@ -67,32 +67,33 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
-  } else do {
-    if ((r_scause() & 13) == 13) {
-      uint64 stval = r_stval();
-
-      if (stval >= p->sz) {
-        p->killed = 1; break;
-      }
-
-      if (stval < p->ustack && stval >= p->ustack - PGSIZE)
+  } else if(r_scause()==13 || r_scause()==15)
+  {
+    uint64 vir_addr=r_stval();
+    if(vir_addr)
+    {
+      if(islazy(vir_addr))
       {
-        p->killed = 1; break;
+        int tag=la_alloc(vir_addr);
+        if(tag<0)
+        {
+          p->killed=1;
+          // panic("lazyalloc wrong");
+        }
       }
-
-      char *mem = kalloc();
-      if (mem == 0) {
-        p->killed = 1; break;
+      else 
+      {
+        // printf("1\n");
+        p->killed=1;
+        // panic("error addr");
       }
-
-      memset(mem, 0, PGSIZE);
-      mappages(p->pagetable, PGROUNDDOWN(stval), PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R|PTE_U);
-    } else {
-      printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
-      printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
-      p->killed = 1;
     }
-  } while (0);
+  }
+  else {
+    printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+    printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+    p->killed = 1;
+  }
 
   if(p->killed)
     exit(-1);
