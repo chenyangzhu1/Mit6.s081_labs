@@ -67,7 +67,29 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
-  } else {
+  } else if(r_scause()==13 || r_scause()==15)
+  {
+    uint64 vir_addr=r_stval();
+    if(vir_addr)
+    {
+      if(islazy(vir_addr))
+      {
+        int tag=la_alloc(vir_addr);
+        if(tag<0)
+        {
+          p->killed=1;
+          // panic("lazyalloc wrong");
+        }
+      }
+      else 
+      {
+        // printf("1\n");
+        p->killed=1;
+        // panic("error addr");
+      }
+    }
+  }
+  else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     p->killed = 1;

@@ -694,3 +694,37 @@ procdump(void)
     printf("\n");
   }
 }
+
+
+int islazy(uint64 addr)
+{//在addr都大于本进程sz，那就是不合法的虚拟地址
+  if(addr>=myproc()->sz )
+  {//如果在栈底之下也不对
+    if(addr<=PGROUNDDOWN(myproc()->trapframe->sp))
+    {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+int la_alloc(uint64 addr)
+{
+  addr=PGROUNDDOWN(addr);//向下舍入
+
+
+    char *  mem = kalloc();
+    if(mem == 0){
+      // uvmdealloc(pagetable, a, oldsz);
+      // return 0;
+      return -1;//失败返回-1
+    }
+    memset(mem, 0, PGSIZE);//成功获得就全置为0
+    //然后尝试对页表进行映射
+    if(mappages(myproc()->pagetable, addr, PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R|PTE_U) != 0){
+      kfree(mem);
+      // uvmdealloc(pagetable, a, oldsz);
+      return -1;
+    }
+  return 0;
+}
