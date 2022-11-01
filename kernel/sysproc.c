@@ -11,10 +11,10 @@ uint64
 sys_exit(void)
 {
   int n;
-  if (argint(0, &n) < 0)
+  if(argint(0, &n) < 0)
     return -1;
   exit(n);
-  return 0; // not reached
+  return 0;  // not reached
 }
 
 uint64
@@ -33,7 +33,7 @@ uint64
 sys_wait(void)
 {
   uint64 p;
-  if (argaddr(0, &p) < 0)
+  if(argaddr(0, &p) < 0)
     return -1;
   return wait(p);
 }
@@ -44,30 +44,12 @@ sys_sbrk(void)
   int addr;
   int n;
 
-  if (argint(0, &n) < 0)
+  if(argint(0, &n) < 0)
     return -1;
   addr = myproc()->sz;
-  // if(growproc(n) < 0)
-  //   return -1;
-
-  if (n > 0)
-  {
-    myproc()->sz += n;
-  }
-  else
-  {
-    if(myproc()->sz+n <0)
-    {
-      printf("tests\n");
-      return -1;
-    }
-    else //处理参数为负的情况，参考growproc
-    {
-      myproc()->sz = uvmdealloc(myproc()->pagetable, myproc()->sz, (myproc()->sz) + n);
-      // if (uvmdealloc(myproc()->pagetable, addr, addr+n) != (addr+n)) {
-      //       return -1;
-      //   }
-    }
+  myproc()->sz += n;
+  if (n < 0) {
+    myproc()->sz = uvmdealloc(myproc()->pagetable, addr, addr + n);
   }
   return addr;
 }
@@ -78,14 +60,12 @@ sys_sleep(void)
   int n;
   uint ticks0;
 
-  if (argint(0, &n) < 0)
+  if(argint(0, &n) < 0)
     return -1;
   acquire(&tickslock);
   ticks0 = ticks;
-  while (ticks - ticks0 < n)
-  {
-    if (myproc()->killed)
-    {
+  while(ticks - ticks0 < n){
+    if(myproc()->killed){
       release(&tickslock);
       return -1;
     }
@@ -100,7 +80,7 @@ sys_kill(void)
 {
   int pid;
 
-  if (argint(0, &pid) < 0)
+  if(argint(0, &pid) < 0)
     return -1;
   return kill(pid);
 }
