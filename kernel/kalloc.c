@@ -112,7 +112,7 @@ kalloc(void)
 
   //先从 CPU 自己对应的 freelist 开始找，然后如果不够再去其他的 CPU 的 freelist 找
 
-  if (r) //当前CPU不为空
+  if (r) //当前CPU对应的锁的freelist不为空
   {
     kmem[id].freelist = r->next; //取走表头第一个元素
   }

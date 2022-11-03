@@ -67,6 +67,8 @@ void binit(void)
   initlock(&bcache.lock, "bcache");
 
   // Create linked list of buffers
+
+  //一个桶一个桶进行初始化
   for (int i = 0; i < NBUC; i++)
   {
     initlock(&buckets[i].lock, "bcache.buckets");
@@ -79,6 +81,7 @@ void binit(void)
 
   // bcache.head.prev = &bcache.head;
   // bcache.head.next = &bcache.head;
+  //放入对应内存块buf
   for (b = bcache.buf; b < bcache.buf + NBUF; b++)
   {
     int hashnum = b->blockno % NBUC;
@@ -124,6 +127,9 @@ bget(uint dev, uint blockno)
   //这一段代码就是仿照下一段代码进行修改，把进入bcache改成进入哈希桶，基本原理都是一样的
   // Is the block already cached?
   acquire(&buckets[hashnum].lock); //先获取锁
+
+//自己桶内有
+
   for (b = buckets[hashnum].head.next; b != &buckets[hashnum].head; b = b->next)
   { //利用head进行链表遍历
     if (b->dev == dev && b->blockno == blockno)
