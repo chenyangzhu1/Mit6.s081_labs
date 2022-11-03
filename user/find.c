@@ -6,14 +6,18 @@
 char *fmtname(char *path)
 {
     char *p;
+    static char buf[DIRSIZ + 1];
 
     // Find first character after last slash.
     for (p = path + strlen(path); p >= path && *p != '/'; p--)
         ;
     p++;
-
-    return p;
-    //这里仅仅需要返回斜杠后面的第一个字符串即可
+    // Return blank-padded name.
+    if (strlen(p) >= DIRSIZ)
+        return p;
+    memmove(buf, p, strlen(p));
+    memset(buf + strlen(p), ' ', DIRSIZ - strlen(p));
+    return buf;
 }
 
 void myfind(char *path, char *filename)
