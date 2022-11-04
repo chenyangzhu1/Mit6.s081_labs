@@ -56,6 +56,9 @@ exec(char *path, char **argv)
       goto bad;
     if(loadseg(pagetable, ph.vaddr, ip, ph.off, ph.filesz) < 0)
       goto bad;
+    if(sz1 >= PLIC) { // 添加检测，防止程序大小超过 PLIC
+      goto bad;
+    }
   }
   iunlockput(ip);
   end_op();

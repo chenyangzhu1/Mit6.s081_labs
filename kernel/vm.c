@@ -21,7 +21,7 @@
  */
 pagetable_t kernel_pagetable;
 
-extern char etext[]; // kernel.ld sets this to end of kernel code.
+extern char etext[]; // kernel.ld sets this to end of kernel code.i
 
 extern char trampoline[]; // trampoline.S
 
@@ -30,9 +30,10 @@ extern char trampoline[]; // trampoline.S
  */
 void kvminit()
 {
+  //为内核创建页表
   kernel_pagetable = (pagetable_t)kalloc();
   memset(kernel_pagetable, 0, PGSIZE);
-
+  //对每个io进行映射
   // uart registers
   kvmmap(UART0, UART0, PGSIZE, PTE_R | PTE_W);
 
@@ -68,7 +69,10 @@ pagetable_t init_pagetable_of_kernel()
 {
   pagetable_t pagetable_of_kernel;
   pagetable_of_kernel=(pagetable_t)kalloc();//按照kvminit进行初始化
-
+  if(pagetable_of_kernel==0)
+  {
+    panic("init pagetable error");
+  }
   memset(pagetable_of_kernel,0,PGSIZE);
   // uart registers
   mykvmmap(pagetable_of_kernel, UART0, UART0, PGSIZE, PTE_R | PTE_W);
@@ -174,6 +178,7 @@ void kvmmap(uint64 va, uint64 pa, uint64 sz, int perm)
 // assumes va is page aligned.
 // 虚实地址转换函数，walk使用了全局内核页表，这里需要换成当前内核页表
 //不知道为啥加了还是报错
+//这个点指导书上写的好像没有写。。。。。。
 uint64
 kvmpa(uint64 va)
 {
@@ -557,42 +562,6 @@ int test_pagetable()
 void vmprint(pagetable_t pgtbl)
 {
   printf("page table %p\n", pgtbl);
-  // fixme
-  //  int i = 0;
-  //  int j = 0;
-  //  int k = 0;
-  //  pte_t pte_root, pte_sub, pte_leaf;
-  //  uint64 child_root, child_sub, child_leaf;
-  //  while (i < 512)
-  //  {
-  //    pte_t pte_root = pgtbl[i];
-  //    if ((pte_root & PTE_V))
-  //    {
-  //      uint64 child_root = PTE2PA(pte_root);
-  //      printf("||%d: pte %p pa %p\n", i, pte_root, child_root);
-  //      while (j < 512)
-  //      {
-  //        pte_t pte_sub = ((pagetable_t)child_root)[j];
-  //        if (pte_sub & PTE_V)
-  //        {
-  //          uint64 child_sub = PTE2PA(pte_sub);
-  //          printf("|| ||%d: pte %p pa %p\n", j, pte_sub, child_sub);
-  //          while (k < 512)
-  //          {
-  //            pte_t pte_leaf = ((pagetable_t)child_sub)[k];
-  //            if (pte_leaf & PTE_V)
-  //            {
-  //              uint64 child_leaf = PTE2PA(pte_leaf);
-  //              printf("|| || ||%d: pte %p pa %p\n", k, pte_leaf, child_leaf);
-  //            }
-  //            k++;
-  //          }
-  //        }
-  //        j++;
-  //      }
-  //    }
-  //    i++;
-  //  }
 //fixme
   for (int i = 0; i < 512; i++)
   {

@@ -129,6 +129,7 @@ found:
   }
   //fixme
   //仿照上面的逻辑 这个kernel pagetable是我们之前已经加入到proc.h中的
+  //其实就是给自己新定义的内核页表初始化一下
   p->kernel_pagetable = init_pagetable_of_kernel();
   if (p->kernel_pagetable == 0)
   {
@@ -173,6 +174,10 @@ void myfreewalk(pagetable_t pagetable)
     则递归调用freewalk释放页表项，并将对应的PTE清零*/
     if ((pte & PTE_V) && (pte & (PTE_R | PTE_W | PTE_X)) == 0)
     {
+      
+      //有下一级，要继续递归清零
+      
+      
       // this PTE points to a lower-level page table.
       uint64 child = PTE2PA(pte);     // 将PTE转为为物理地址
       myfreewalk((pagetable_t)child); // 递归调用freewalk
@@ -181,6 +186,10 @@ void myfreewalk(pagetable_t pagetable)
     }
     else if (pte & PTE_V)
     {
+      
+      //没有下一级，直接删除本级的即可
+
+
       /*如果叶子页表的虚拟地址还有映射到物理地址，报错panic。
       因为调用freewalk之前应该会先uvmunmap释放物理内存*/
       // panic("freewalk: leaf");
@@ -188,7 +197,7 @@ void myfreewalk(pagetable_t pagetable)
       pagetable[i] = 0;
     }
   }
-  kfree((void *)pagetable); // 释放pagetable指向的物理页
+  kfree((void *)pagetable); // 释放pagetable本身的物理内存
 }
 
 // free a proc structure and the data hanging from it,
@@ -205,12 +214,14 @@ freeproc(struct proc *p)
     kfree((void *)p->trapframe);
   p->trapframe = 0;
 
+
+  //释放内核页表，既要释放内核栈hint3，又要释放页表对应的表项
+  //叶子页表指向共享物理内存，不能回收物理内存，应该去解除映射
   //依据指导书和freewalk使用uvmunmap释放物理内存
   //释放内核栈内存
   if (p->kstack)
   {
     uvmunmap(p->kernel_pagetable, p->kstack, 1, 1);
-    //释放页表但是不释放叶子页表指向的物理  的方法也许是清除映射？
     //清除了映射后面的事情就交给硬件  指导书说的
   }
   //释放内核页表
@@ -302,7 +313,10 @@ void userinit(void)
   // and data into it.
   uvminit(p->pagetable, initcode, sizeof(initcode));
   p->sz = PGSIZE;
-  myuvmcopy(p->pagetable, p->kernel_pagetable, 0, p->sz);
+  if(p->sz)
+  {
+    myuvmcopy(p->pagetable, p->kernel_pagetable, 0, p->sz);
+  }
   // fixme
   //  prepare for the very first "return" from kernel to user.
   p->trapframe->epc = 0;     // user program counter
@@ -331,7 +345,7 @@ growproc(int n)
     // 不能覆盖PLIC地址空间
     if (PGROUNDUP(sz + n) >= PLIC)
       return -1;
-    if ((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0)
+    else if ((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0)
     {
       return -1;
     }
@@ -384,7 +398,10 @@ int fork(void)
   np->cwd = idup(p->cwd);
 
   // fixme
-  myuvmcopy(np->pagetable, np->kernel_pagetable, 0, np->sz);
+  if(np->sz)
+  {
+    myuvmcopy(np->pagetable, np->kernel_pagetable, 0, np->sz);
+  }
   safestrcpy(np->name, p->name, sizeof(p->name));
 
   pid = np->pid;
@@ -593,7 +610,7 @@ void scheduler(void)
 
         //结合指导书和代码，可以发现swich结束以后，进程就是done，也就是结束了，因此没有进程的时候应该使用全局内核页
         //无进程运行的适配：当目前没有进程运行的时候，scheduler() 应该要satp载入全局的内核页表kernel_pagetable (kernel/vm.c)。
-        kvminithart(); // fixme  暂时不是很理解
+        kvminithart(); 
 
         // Process is done running for now.
         // It should have changed its p->state before coming back.
@@ -841,13 +858,14 @@ void myuvmcopy(pagetable_t user, pagetable_t kernel, uint64 oldsz, uint64 newsz)
     oldsz = PGROUNDUP(oldsz);
     for (uint64 i = oldsz; i < newsz; i += PGSIZE)
     {
-      pte_t *pte_from = walk(user, i, 0);
-      pte_t *pte_to = walk(kernel, i, 1);
+      pte_t *pte_from = walk(user, i, 0);//旧的页表，不需要创建中间页表，第三个参数为0
+      pte_t *pte_to = walk(kernel, i, 1);//新的页表，可能缺中间级别的页表，因此alloc为1
       if (pte_from && pte_to)
       { //清除标记位
-        pte_t pa = PTE2PA(*pte_from);
+        pte_t pa = PTE2PA(*pte_from);//只保留PPN
         uint flags = (PTE_FLAGS(*pte_from) & (~PTE_U));
-        *pte_to = PA2PTE(pa) | flags;
+        //PTE_FLAGS用于获得PTE的所有flag位的信息，和~PTE_U做与运算，最后的结果就是保留所有的flag，只有U这一位被设置为0
+        *pte_to = PA2PTE(pa) | flags;// PA2PTE(pa) 高位是PPN，低位是0，和flag做与运算，就是把flag赋值进来
       }
       else
       {
