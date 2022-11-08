@@ -82,11 +82,7 @@ usertrap(void)
         p->killed=1;
       }
 
-      // if (va >= MAXVA || (va <= PGROUNDDOWN(p->trapframe->sp) && va >= PGROUNDDOWN(p->trapframe->sp) - PGSIZE)) {
-      //   p->killed = 1;
-      // } else if (cow_alloc(p->pagetable, va) != 0) {
-      //   p->killed = 1;
-      // }
+
   } else {
       printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
       printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());

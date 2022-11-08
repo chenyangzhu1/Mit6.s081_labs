@@ -8,7 +8,6 @@
 #include "spinlock.h"
 #include "riscv.h"
 #include "defs.h"
-// #define PA2IDX(pa) (((uint64)pa) >> 12)
 
 void freerange(void *pa_start, void *pa_end);
 
@@ -27,7 +26,6 @@ struct {
 struct {
   struct spinlock lock;
   int count[PGROUNDUP(PHYSTOP) / PGSIZE];
-  // int count[(PHYSTOP-KERNBASE)/PGSIZE];
 } refc;
 
 
@@ -67,14 +65,7 @@ kinit()
   }
   initlock(&kmem.lock, "kmem");
   freerange(end, (void*)PHYSTOP);
-  // char *p;
-  // p = (char*)PGROUNDUP((uint64)end);
 
-  // while((p+PGSIZE)<=(char*)PHYSTOP)
-  // {
-  //   cntadd((void*)p);
-  //   p+=PGSIZE;
-  // }
 
 }
 
