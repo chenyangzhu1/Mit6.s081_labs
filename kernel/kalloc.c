@@ -8,6 +8,7 @@
 #include "spinlock.h"
 #include "riscv.h"
 #include "defs.h"
+// #define PA2IDX(pa) (((uint64)pa) >> 12)
 
 void freerange(void *pa_start, void *pa_end);
 
@@ -23,11 +24,58 @@ struct {
   struct run *freelist;
 } kmem;
 
+struct {
+  struct spinlock lock;
+  int count[PGROUNDUP(PHYSTOP) / PGSIZE];
+  // int count[(PHYSTOP-KERNBASE)/PGSIZE];
+} refc;
+
+
+int getidx(void *pa)
+{
+  return ((uint64)pa) >> 12;
+}
+
+void
+cntadd(void *pa)
+{
+  acquire(&refc.lock);
+  refc.count[getidx(pa)]++;
+  release(&refc.lock);
+}
+
+void
+cntminus(void *pa)
+{
+  acquire(&refc.lock);
+  refc.count[getidx(pa)]--;
+  release(&refc.lock);
+}
+
+int
+getcnt(void *pa)
+{
+  return refc.count[getidx(pa)];
+}
+
 void
 kinit()
 {
+  initlock(&refc.lock, "cntlock");
+  for (int i = 0; i < PGROUNDUP(PHYSTOP) / PGSIZE; i++) {
+    refc.count[i] = 1;
+  }
   initlock(&kmem.lock, "kmem");
   freerange(end, (void*)PHYSTOP);
+  // char *p;
+  // p = (char*)PGROUNDUP((uint64)end);
+
+  // while((p+PGSIZE)<=(char*)PHYSTOP)
+  // {
+  //   cntadd((void*)p);
+  //   p+=PGSIZE;
+  // }
+
 }
 
 void
@@ -35,8 +83,10 @@ freerange(void *pa_start, void *pa_end)
 {
   char *p;
   p = (char*)PGROUNDUP((uint64)pa_start);
-  for(; p + PGSIZE <= (char*)pa_end; p += PGSIZE)
+  for(; p + PGSIZE <= (char*)pa_end; p += PGSIZE) {
     kfree(p);
+}
+    
 }
 
 // Free the page of physical memory pointed at by v,
@@ -50,7 +100,13 @@ kfree(void *pa)
 
   if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
     panic("kfree");
-
+  cntminus(pa);
+  if (getcnt(pa) > 0) 
+  {
+    return ;
+  }
+  else
+  {
   // Fill with junk to catch dangling refs.
   memset(pa, 1, PGSIZE);
 
@@ -60,6 +116,9 @@ kfree(void *pa)
   r->next = kmem.freelist;
   kmem.freelist = r;
   release(&kmem.lock);
+  }
+  
+
 }
 
 // Allocate one 4096-byte page of physical memory.
@@ -76,7 +135,9 @@ kalloc(void)
     kmem.freelist = r->next;
   release(&kmem.lock);
 
-  if(r)
+  if(r) {
     memset((char*)r, 5, PGSIZE); // fill with junk
+    cntadd((void*)r);
+  }
   return (void*)r;
 }
