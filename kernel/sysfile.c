@@ -270,7 +270,7 @@ create(char *path, short type, short major, short minor)
   if(type == T_DIR){  // Create . and .. entries.
     dp->nlink++;  // for ".."
     iupdate(dp);
-    // No ip->nlink++ for ".": avoid cyclic ref count.
+    // No ip->nlink++ for ".": avoid cyclic ref depth.
     if(dirlink(ip, ".", ip->inum) < 0 || dirlink(ip, "..", dp->inum) < 0)
       panic("create dots");
   }
@@ -304,15 +304,50 @@ sys_open(void)
       return -1;
     }
   } else {
-    if((ip = namei(path)) == 0){
-      end_op();
-      return -1;
-    }
-    ilock(ip);
+      if((ip = namei(path)) == 0){
+        end_op();
+        return -1;
+      }
+      ilock(ip);
     if(ip->type == T_DIR && omode != O_RDONLY){
       iunlockput(ip);
       end_op();
       return -1;
+    }
+  }
+//如果是symlink
+  if (ip->type == T_SYMLINK)
+  {
+    //如果不是no follow，就需要去打开软连接，用位运算来检查
+    if ((omode & O_NOFOLLOW) == 0)
+    {
+      int depth = 0;
+      char sympath[MAXPATH];
+      while (depth < 10 && ip->type==T_SYMLINK)
+      {
+        // 从inode第一个位置读入targetpath，如果读入失败就退出
+        if (readi(ip, 0, (uint64)sympath, 0, MAXPATH) != MAXPATH)
+        {
+          end_op();
+          return -1;
+        }
+        depth++;
+        iunlockput(ip);
+        
+        //如果文件不存在，打开失败
+        if ((ip = namei(sympath)) == 0)
+        {
+          end_op();
+          return -1;
+        }
+        ilock(ip);
+      }
+      if (depth >= 10)
+      {
+        iunlockput(ip);
+        end_op();
+        return -1;
+      }
     }
   }
 
@@ -482,5 +517,38 @@ sys_pipe(void)
     fileclose(wf);
     return -1;
   }
+  return 0;
+}
+
+uint64
+sys_symlink(void)
+{
+  struct inode *ip;
+  char target[MAXPATH], path[MAXPATH];
+  if(argstr(0, target, MAXPATH) < 0 || argstr(1, path, MAXPATH) < 0)
+    return -1;
+
+// called at the start of each FS system call.
+  begin_op();
+//如果目标路径没有inode
+//namei根据path返回对应的inode
+  if ((ip = namei(path)) == 0) {
+// 分配一个inode结点，create返回锁定的inode
+    ip = create(path, T_SYMLINK, 0, 0);
+//解锁
+    iunlock(ip);
+  } 
+  //操作之前上锁
+  ilock(ip);
+  // 用第一个数据块来存储目标路径名  直接写入
+  //返回成功写入的字节数，如果不是MAXPATH则报错
+  if(writei(ip, 0, (uint64)target, 0, MAXPATH) !=MAXPATH) {
+    end_op();
+    return -1;
+  }
+//iunlockput既对inode解锁，还将其引用计数减1，计数为0时回收此inode
+  iunlockput(ip);
+//结束操作
+  end_op();
   return 0;
 }
