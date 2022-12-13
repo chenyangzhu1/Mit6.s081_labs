@@ -581,6 +581,7 @@ void vmprint(pagetable_t pgtbl)
       for (int j = 0; j < 512; j++)
       {
         pte_t pte_sub = ((pagetable_t)child_root)[j];
+        //就是对子页表进行遍历
         //这一步是有点难想，但其实看了指导书就知道这个child root就是下一级的物理地址，j就是遍历过程的偏移，实际上也就是向下一级进行定位
         //后面每一层的逻辑都和第一层一样
         if (pte_sub & PTE_V)

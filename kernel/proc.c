@@ -144,14 +144,30 @@ found:
   // Allocate a page for the process's kernel stack.
   // Map it high in memory, followed by an invalid
   // guard page.
+  // 分配一个物理页，作为新进程的内核栈使用
+
+//下面处理内核栈
+
+/*在 xv6 原来的设计中，
+内核页表本来是只有一个的，所有进程共用，
+所以需要为不同进程创建多个内核栈，
+并 map 到不同位置（见 procinit() 和 KSTACK 宏）。
+而我们的新设计中，每一个进程都会有自己独立的内核页表，
+并且每个进程也只需要访问自己的内核栈，
+而不需要能够访问所有 64 个进程的内核栈。
+所以可以将所有进程的内核栈 map 
+到其各自内核页表内的固定位置（不同页表内的同一逻辑地址，指向不同物理内存）。*/
+
+
   char *pa = kalloc();
   if (pa == 0)
     panic("kalloc");
   // uint64 va = KSTACK((int)(p - proc));
-  uint64 va = KSTACK(0); // 计算内核栈所在虚拟地址
+  uint64 va = KSTACK(0); // 将内核栈映射到固定的逻辑地址上
   //在这里使用了mykvmmap的话，要在defs中把它添加进去， 因为忘记添加编译不过卡了好久
   mykvmmap(p->kernel_pagetable, va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
-  p->kstack = va;
+  //每个进程的内核页表关于栈也要有映射，这里的栈的解释见ipad笔记
+  p->kstack = va; // 记录内核栈的逻辑地址，其实已经是固定的了，依然这样记录是为了避免需要修改其他部分 xv6 代码
 
   // Set up new context to start executing at forkret,
   // which returns to user space.
