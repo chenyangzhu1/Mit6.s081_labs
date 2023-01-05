@@ -246,7 +246,7 @@ growproc(int n)
     if((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
       return -1;
     }
-  } else if(n < 0){
+  } else if(n < 0){//处理n为负数的情况
     sz = uvmdealloc(p->pagetable, sz, sz + n);
   }
   p->sz = sz;
@@ -698,8 +698,9 @@ procdump(void)
 
 int islazy(uint64 addr)
 {//在addr都大于本进程sz，那就是不合法的虚拟地址
+//如果某个进程在高于sbrk()分配的任何虚拟内存地址上出现页错误，则终止该进程。
   if(addr>=myproc()->sz || (addr<PGROUNDDOWN(myproc()->trapframe->sp) && addr>=PGROUNDDOWN(myproc()->trapframe->sp)-PGSIZE))
-  {//如果在栈底之下也不对
+  {//如果在栈底之下也不对  这个是最后一个任务的最后一个提示说的
     return 0;
   }
   else
@@ -710,21 +711,24 @@ int islazy(uint64 addr)
 
 int la_alloc(uint64 addr)
 {
-  addr=PGROUNDDOWN(addr);//向下舍入
+  // 使用PGROUNDDOWN(va)将出错的虚拟地址向下舍入到页面边界
+  addr = PGROUNDDOWN(addr); // 向下舍入
 
-
-    char *  mem = kalloc();
-    if(mem == 0){
-      // uvmdealloc(pagetable, a, oldsz);
-      // return 0;
-      return -1;//失败返回-1
-    }
-    memset(mem, 0, PGSIZE);//成功获得就全置为0
-    //然后尝试对页表进行映射
-    if(mappages(myproc()->pagetable, addr, PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R|PTE_U) != 0){
-      kfree(mem);
-      // uvmdealloc(pagetable, a, oldsz);
-      return -1;
-    }
+  char *mem = kalloc();
+  if (mem == 0)
+  {
+    //正确处理内存不足：如果在页面错误处理程序中执行`kalloc()`失败，则终止当前进程。
+    // uvmdealloc(pagetable, a, oldsz);
+    // return 0;
+    return -1; // 失败返回-1
+  }
+  memset(mem, 0, PGSIZE); // 成功获得就全置为0
+  // 然后尝试对页表进行映射
+  if (mappages(myproc()->pagetable, addr, PGSIZE, (uint64)mem, PTE_W | PTE_X | PTE_R | PTE_U) != 0)
+  {
+    kfree(mem);
+    // uvmdealloc(pagetable, a, oldsz);
+    return -1;
+  }
   return 0;
 }

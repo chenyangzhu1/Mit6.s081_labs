@@ -67,15 +67,18 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
+    //如果是13或者15，就意味着存在page fault  需要进一步处理
   } else if(r_scause()==13 || r_scause()==15)
   {
     uint64 vir_addr=r_stval();
     if(vir_addr)
     {
+      //封装两个函数  一个是islazy用于判断是否是懒分配导致的页面错误
       if(islazy(vir_addr))
       {
+        //如果是的话就进行分配
         int tag=la_alloc(vir_addr);
-        if(tag<0)
+        if(tag<0)//如果有分配错误，就直接kill掉
         {
           p->killed=1;
           // panic("lazyalloc wrong");

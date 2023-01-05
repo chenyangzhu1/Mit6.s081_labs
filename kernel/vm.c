@@ -204,11 +204,13 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free)
       continue;
 
     }
+    //跳过
       // panic("uvmunmap: walk");
     if((*pte & PTE_V) == 0)
     {
       continue;
     }
+    //跳过
       // panic("uvmunmap: not mapped");
     if(PTE_FLAGS(*pte) == PTE_V)
       panic("uvmunmap: not a leaf");
@@ -262,6 +264,7 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
 
   oldsz = PGROUNDUP(oldsz);
   for(a = oldsz; a < newsz; a += PGSIZE){
+    //分配方式就是先申请内存，然后建立映射
     mem = kalloc();
     if(mem == 0){
       uvmdealloc(pagetable, a, oldsz);
@@ -392,6 +395,9 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 
   while(len > 0){
     va0 = PGROUNDDOWN(dstva);
+    //因为我们给的是一个虚拟地址
+    //，walkaddr并不总能利用这个地址来获得一个物理地址，
+    //因此有时会返回0，然后就出错。
     pa0 = walkaddr(pagetable, va0);
     if(pa0 == 0)
       return -1;
