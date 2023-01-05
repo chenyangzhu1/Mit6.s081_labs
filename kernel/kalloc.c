@@ -92,12 +92,14 @@ kfree(void *pa)
   if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
     panic("kfree");
   cntminus(pa);
+  //引用计数-1   判断该物理页的引用是否为0，
   if (getcnt(pa) > 0) 
   {
     return ;
   }
   else
   {
+    //如果为0，则需要push回freelist
   // Fill with junk to catch dangling refs.
   memset(pa, 1, PGSIZE);
 
@@ -128,6 +130,7 @@ kalloc(void)
 
   if(r) {
     memset((char*)r, 5, PGSIZE); // fill with junk
+    //引用计数++
     cntadd((void*)r);
   }
   return (void*)r;

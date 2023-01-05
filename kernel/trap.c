@@ -268,7 +268,7 @@ int cow_alloc(pagetable_t pagetable, uint64 va) {
   uint64 pa;
   pte_t *pte;
   uint flags;
-
+  //前面是获取va pte pa flags 并进行边界特判
   if (va >= MAXVA) return -1; 
   va = PGROUNDDOWN(va);
   pte = walk(pagetable, va, 0);
@@ -279,9 +279,12 @@ int cow_alloc(pagetable_t pagetable, uint64 va) {
   flags = PTE_FLAGS(*pte);
 
   if (flags & PTE_COW) {
+    //如果有cow位，就模仿uvmcopy被注释掉的部分，申请内存，
+    //把从pa开始一个页大小的内容复制过去
     char *mem = kalloc();
     if (mem == 0) return -1;
     memmove(mem, (char*)pa, PGSIZE);
+    //清除cow位，并且给上写权限
     flags = (flags & ~PTE_COW) | PTE_W;
     *pte = PA2PTE((uint64)mem) | flags;
     kfree((void*)pa);

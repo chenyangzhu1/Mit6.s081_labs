@@ -322,7 +322,7 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
     flags = PTE_FLAGS(*pte);
     //如果是有写权限的page，就先清除PTE_W
     if (flags & PTE_W) {
-      flags = flags | PTE_COW;
+      flags = flags | PTE_COW;//标记为cow页
       flags=flags&(~PTE_W);
       *pte = PA2PTE(pa) | flags;
     }
@@ -365,7 +365,7 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 
   while(len > 0){
     va0 = PGROUNDDOWN(dstva);
-
+    //调用懒分配
     if (cow_alloc(pagetable, va0) != 0)
     {
       return -1;
