@@ -94,6 +94,7 @@ void usertrap(void)
       if(p->flag==0 &&   p->ticks_sum==p->ticks)
       {
         p->ticks_sum = 0;
+        //保存现场
         memmove(p->t_trap, p->trapframe, sizeof(struct trapframe));
         p->flag = 1;
         p->trapframe->epc = (uint64)p->handler;

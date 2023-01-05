@@ -23,7 +23,7 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
-int sigalarm(int ticks, void (*handler)());
+int sigalarm(int ticks, void (*handler)()); //新增
 int sigreturn(void);
 
 // ulib.c
