@@ -342,6 +342,7 @@ sys_open(void)
         }
         ilock(ip);
       }
+      //最后检查是否是因为深度超过10而退出，如果是，认为是循环，报错。
       if (depth >= 10)
       {
         iunlockput(ip);
@@ -525,30 +526,32 @@ sys_symlink(void)
 {
   struct inode *ip;
   char target[MAXPATH], path[MAXPATH];
-  if(argstr(0, target, MAXPATH) < 0 || argstr(1, path, MAXPATH) < 0)
+  if (argstr(0, target, MAXPATH) < 0 || argstr(1, path, MAXPATH) < 0)
     return -1;
 
-// called at the start of each FS system call.
+  // called at the start of each FS system call.
   begin_op();
-//如果目标路径没有inode
-//namei根据path返回对应的inode
-  if ((ip = namei(path)) == 0) {
-// 分配一个inode结点，create返回锁定的inode
+  // 如果目标路径没有inode
+  // namei根据path返回对应的inode
+  if ((ip = namei(path)) == 0)
+  {
+    // 分配一个inode结点，create返回锁定的inode
     ip = create(path, T_SYMLINK, 0, 0);
-//解锁
+    // 解锁
     iunlock(ip);
-  } 
-  //操作之前上锁
+  }
+  // 操作之前上锁
   ilock(ip);
   // 用第一个数据块来存储目标路径名  直接写入
-  //返回成功写入的字节数，如果不是MAXPATH则报错
-  if(writei(ip, 0, (uint64)target, 0, MAXPATH) !=MAXPATH) {
+  // 返回成功写入的字节数，如果不是MAXPATH则报错
+  if (writei(ip, 0, (uint64)target, 0, MAXPATH) != MAXPATH)
+  {
     end_op();
     return -1;
   }
-//iunlockput既对inode解锁，还将其引用计数减1，计数为0时回收此inode
+  // iunlockput既对inode解锁，还将其引用计数减1，计数为0时回收此inode
   iunlockput(ip);
-//结束操作
+  // 结束操作
   end_op();
   return 0;
 }
