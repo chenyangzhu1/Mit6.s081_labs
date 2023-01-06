@@ -386,13 +386,17 @@ bmap(struct inode *ip, uint bn)
     return addr;
   }
   bn -= NDIRECT;
+  //调整bn的方法是减掉已经考察过的块
 //一级非直接块
   if(bn < NINDIRECT){ // singly-indirect
     // Load indirect block, allocating if necessary.
+    //载入间接块，如果没有内存则用balloc分配
     if((addr = ip->addrs[NDIRECT]) == 0)
       ip->addrs[NDIRECT] = addr = balloc(ip->dev);
+    //读出其中内容
     bp = bread(ip->dev, addr);
     a = (uint*)bp->data;
+
     if((addr = a[bn]) == 0){
       a[bn] = addr = balloc(ip->dev);
       log_write(bp);
@@ -406,10 +410,7 @@ bmap(struct inode *ip, uint bn)
     // Load indirect block, allocating if necessary.
     //载入非直接块 并 分配
     
-
-    
-
-    //二级间接中的第一级
+    //二级间接中的第一级  
     if((addr = ip->addrs[NDIRECT+1]) == 0)
       ip->addrs[NDIRECT+1] = addr = balloc(ip->dev);
     bp = bread(ip->dev, addr);
@@ -421,7 +422,7 @@ bmap(struct inode *ip, uint bn)
     brelse(bp);
 
     //二级间接中的第二级，
-    //blocknum取模 联想低地址索引
+    //blocknum取模 低地址索引
     bn %= NINDIRECT;
     bp = bread(ip->dev, addr);
     a = (uint*)bp->data;
