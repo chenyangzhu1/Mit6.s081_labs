@@ -10,6 +10,7 @@
 #define STACK_SIZE  8192
 #define MAX_THREAD  4
 
+//定义上下文结构体
 struct context {
   uint64 ra;
   uint64 sp;
@@ -32,7 +33,7 @@ struct context {
 struct thread {
   char       stack[STACK_SIZE]; /* the thread's stack */
   int        state;             /* FREE, RUNNING, RUNNABLE */
-  struct context context;
+  struct context context;  //把上下文结构体加入thread这个结构体，在进程切换的时候保存
 };
 struct thread all_thread[MAX_THREAD];
 struct thread *current_thread;
@@ -81,6 +82,7 @@ thread_schedule(void)
      * Invoke thread_switch to switch from t to next_thread:
      * thread_switch(??, ??);
      */
+    //在thread_schedule中添加对thread_switch的调用
     thread_switch((uint64)&t->context, (uint64)&current_thread->context);
   } else
     next_thread = 0;
