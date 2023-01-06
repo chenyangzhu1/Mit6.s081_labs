@@ -103,10 +103,9 @@ struct proc {
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
-  int ticks;
-
+  int ticks;//用来接收需要过多少个tick才alarm  也就是报警间隔
   void (*handler)(); //指向处理函数的指针
   int ticks_sum;//用于统计一共经过了多少个时钟周期
   struct trapframe* t_trap;//临时存放trapframe用于保存现场
-  int flag;
+  int flag;//用来标志是否还在执行handler函数
 };

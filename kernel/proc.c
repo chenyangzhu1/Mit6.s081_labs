@@ -133,7 +133,7 @@ found:
     release(&p->lock);
     return 0;
 }
-  //初始化
+  //初始化-------
   p->ticks_sum=0;
   p->ticks=0;
   p->flag=0;
